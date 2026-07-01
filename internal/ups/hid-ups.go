@@ -65,7 +65,7 @@ func (u *HidUps) sendRawQuery(cmdStr string) (string, error) {
 	var fullResponse []byte
 	buf := make([]byte, 64)
 
-	for _ = range 10 {
+	for range 10 {
 		n, err := u.device.Read(buf)
 		if err != nil {
 			return "", err

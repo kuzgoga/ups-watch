@@ -53,7 +53,7 @@ func getOptionalDurationEnv(name, defaultValue string) time.Duration {
 }
 
 func NewConfig() Config {
-	godotenv.Load()
+	_ = godotenv.Load()
 
 	vendorId, _ := strconv.ParseUint(getRequiredEnv("VENDOR_ID"), 16, 16)
 	productId, _ := strconv.ParseUint(getRequiredEnv("PRODUCT_ID"), 16, 16)

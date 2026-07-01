@@ -12,5 +12,5 @@ func NewLinuxMachine() *LinuxMachine {
 
 func (m *LinuxMachine) Shutdown() {
 	syscall.Sync()
-	syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF)
+	_ = syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF)
 }

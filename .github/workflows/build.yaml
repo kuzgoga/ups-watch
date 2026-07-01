@@ -1,0 +1,176 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release Tag and version (e.g., v1.0.0)"
+        required: true
+      publish:
+        description: "r for normal release, p for prerelease, leave empty to not publish anything"
+        required: false
+
+env:
+  PROJECT_NAME: upswatch
+
+jobs:
+  lint-and-test:
+    name: Lint and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Golangci
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+
+      - name: Run tests
+        run: make test
+
+  build-matrix:
+    name: Build Matrix
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            suffix: linux-amd64
+          - goos: linux
+            goarch: arm64
+            suffix: linux-arm64
+          - goos: linux
+            goarch: arm
+            goarm: 7
+            suffix: linux-armv7
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarm }}
+        run: |
+          BINARY_NAME="${{ env.PROJECT_NAME }}-${{ matrix.suffix }}${{ matrix.extension }}"
+          echo "Building $BINARY_NAME"
+          go build -ldflags="-s -w" -o "$BINARY_NAME" ./cmd/archivist/
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PROJECT_NAME }}-${{ matrix.suffix }}
+          path: ${{ env.PROJECT_NAME }}-${{ matrix.suffix }}${{ matrix.extension }}
+          retention-days: 7
+
+  publish:
+    name: Publish Release
+    runs-on: ubuntu-latest
+    needs: build-matrix
+    if: github.event.inputs.tag != ''
+    permissions:
+      contents: write
+      actions: read
+    env:
+      INPUT_VERSION: ${{ github.event.inputs.tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: download-artifacts
+
+      - name: Prepare release artifacts
+        run: |
+          version_standalone="${{ github.event.inputs.tag }}"
+          mkdir -p deployment
+
+          for artifact_dir in download-artifacts/*/; do
+            if [ -d "$artifact_dir" ]; then
+              artifact_name=$(basename "$artifact_dir")
+              echo "Processing artifact: $artifact_name"
+
+              binary_file=$(find "$artifact_dir" -type f -executable -o -name "*.exe" | head -1)
+              if [ -z "$binary_file" ]; then
+                binary_file=$(find "$artifact_dir" -type f | head -1)
+              fi
+
+              if [ -n "$binary_file" ]; then
+                binary_name=$(basename "$binary_file")
+                echo "Found binary: $binary_name"
+
+                platform_suffix="${binary_name#${{ env.PROJECT_NAME }}-}"
+
+                final_name="${{ env.PROJECT_NAME }}-${version_standalone}-${platform_suffix}"
+                cp "$binary_file" "deployment/$final_name"
+                echo "Copied to: $final_name"
+              fi
+            fi
+          done
+
+      - name: Generate release notes
+        run: |
+          cat > release_notes.md << 'EOF'
+          ## 🚀 Release ${{ github.event.inputs.tag }}
+
+          ### 📦 Downloads
+
+          | Platform | Architecture | Download |
+          |----------|--------------|----------|
+          | Linux | x86_64 | [archivist-${{ github.event.inputs.tag }}-linux-amd64](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.tag }}/archivist-${{ github.event.inputs.tag }}-linux-amd64) |
+          | Linux | ARM64 | [archivist-${{ github.event.inputs.tag }}-linux-arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.tag }}/archivist-${{ github.event.inputs.tag }}-linux-arm64) |
+          | Linux | ARMv7 | [archivist-${{ github.event.inputs.tag }}-linux-armv7](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.tag }}/archivist-${{ github.event.inputs.tag }}-linux-armv7) |
+
+          ### 🔐 Verification
+
+          All binaries include SHA256 checksums for verification.
+
+          ### 📋 What's Changed
+
+          EOF
+
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$PREVIOUS_TAG" ]; then
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${{ github.event.inputs.tag }}" >> release_notes.md
+          else
+            echo "**This is the first release!** 🎉" >> release_notes.md
+          fi
+
+      - name: Publish Release
+        uses: tcnksm/ghr@v0
+        with:
+          tag: ${{ github.event.inputs.tag }}
+          push: deployment/
+          replace: "true"
+          token: ${{ github.token }}
+          prerelease: ${{ github.event.inputs.publish == 'p' }}
+          body_path: release_notes.md

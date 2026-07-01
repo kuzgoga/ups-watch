@@ -22,7 +22,7 @@ func SetupWithRetry(upsClient ups.UpsInterface, config config.Config, logger *ev
 		status, err := upsClient.QueryStatus()
 		if err != nil {
 			logger.Log(eventlogger.EventUpsConnectionLost, "Setup: Failed to query UPS status: "+err.Error())
-			upsClient.Disconnect()
+			_ = upsClient.Disconnect()
 			time.Sleep(config.PollInterval)
 			continue
 		}
@@ -65,7 +65,7 @@ func RunMonitorLoop(
 		status, err := upsClient.QueryStatus()
 		if err != nil {
 			logger.Log(eventlogger.EventUpsConnectionLost, "Failed to query UPS: "+err.Error())
-			upsClient.Disconnect()
+			_ = upsClient.Disconnect()
 			exporter.UpdateState(ups.UpsStatus{}, false, 0)
 			time.Sleep(config.PollInterval)
 			continue

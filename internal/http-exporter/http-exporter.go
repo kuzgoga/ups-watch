@@ -50,7 +50,7 @@ func (e *HttpExporter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(metrics)
+	_ = json.NewEncoder(w).Encode(metrics)
 }
 
 func (e *HttpExporter) StartServer(addr string) error {
