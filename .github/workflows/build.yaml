@@ -74,6 +74,9 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
+      - name: Install libudev
+        run: sudo apt install libudev-dev
+
       - name: Build binary
         env:
           GOOS: ${{ matrix.goos }}
