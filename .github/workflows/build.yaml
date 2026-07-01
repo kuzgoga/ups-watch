@@ -119,23 +119,28 @@ jobs:
               artifact_name=$(basename "$artifact_dir")
               echo "Processing artifact: $artifact_name"
 
-              binary_file=$(find "$artifact_dir" -type f -executable -o -name "*.exe" | head -1)
+              binary_file=$(find "$artifact_dir" -maxdepth 1 -type f \( -executable -o -name "*.exe" \) 2>/dev/null | head -1)
+
               if [ -z "$binary_file" ]; then
-                binary_file=$(find "$artifact_dir" -type f | head -1)
+                echo "⚠️  No executable found in $artifact_dir"
+                echo "Contents of artifact directory:"
+                ls -la "$artifact_dir"
+                continue
               fi
 
-              if [ -n "$binary_file" ]; then
-                binary_name=$(basename "$binary_file")
-                echo "Found binary: $binary_name"
+              binary_name=$(basename "$binary_file")
+              echo "✅ Found binary: $binary_name"
 
-                platform_suffix="${binary_name#${{ env.PROJECT_NAME }}-}"
+              platform_suffix="${binary_name#${{ env.PROJECT_NAME }}-}"
 
-                final_name="${{ env.PROJECT_NAME }}-${version_standalone}-${platform_suffix}"
-                cp "$binary_file" "deployment/$final_name"
-                echo "Copied to: $final_name"
-              fi
+              final_name="${{ env.PROJECT_NAME }}-${version_standalone}-${platform_suffix}"
+              cp "$binary_file" "deployment/$final_name"
+              echo "Copied to: $final_name"
             fi
           done
+
+          echo "Final artifacts in deployment:"
+          ls -lh deployment/
 
       - name: Generate release notes
         run: |
@@ -146,7 +151,7 @@ jobs:
 
           | Platform | Architecture | Download |
           |----------|--------------|----------|
-          | Linux | x86_64 | [archivist-${{ github.event.inputs.tag }}-linux-amd64](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.tag }}/archivist-${{ github.event.inputs.tag }}-linux-amd64) |
+          | Linux | x86_64 | [upswatch-${{ github.event.inputs.tag }}-linux-amd64](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.tag }}/upswatch-${{ github.event.inputs.tag }}-linux-amd64) |
 
           ### 🔐 Verification
 
