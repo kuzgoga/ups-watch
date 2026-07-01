@@ -176,7 +176,7 @@ jobs:
         uses: tcnksm/ghr@v0
         with:
           tag: ${{ github.event.inputs.tag }}
-          push: deployment/
+          path: deployment/
           replace: "true"
           token: ${{ github.token }}
           prerelease: ${{ github.event.inputs.publish == 'p' }}
