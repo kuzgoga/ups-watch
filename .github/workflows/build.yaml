@@ -82,7 +82,7 @@ jobs:
         run: |
           BINARY_NAME="${{ env.PROJECT_NAME }}-${{ matrix.suffix }}${{ matrix.extension }}"
           echo "Building $BINARY_NAME"
-          go build -ldflags="-s -w" -o "$BINARY_NAME" ./cmd/archivist/
+          go build -ldflags="-s -w" -o "$BINARY_NAME" ./cmd/upswatch/
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
