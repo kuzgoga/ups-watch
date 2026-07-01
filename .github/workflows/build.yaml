@@ -70,6 +70,9 @@ jobs:
       - name: Install libudev
         run: sudo apt install libudev-dev
 
+      - name: Create build directory
+        run: mkdir -p build
+
       - name: Build binary
         env:
           GOOS: ${{ matrix.goos }}
@@ -79,14 +82,17 @@ jobs:
         run: |
           BINARY_NAME="${{ env.PROJECT_NAME }}-${{ matrix.suffix }}${{ matrix.extension }}"
           echo "Building $BINARY_NAME"
-          go build -ldflags="-s -w" -o "$BINARY_NAME" ./cmd/upswatch/
+          go build -ldflags="-s -w" -o "build/$BINARY_NAME" ./cmd/upswatch/
+          echo "✅ Built: build/$BINARY_NAME"
+          ls -lh build/
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.PROJECT_NAME }}-${{ matrix.suffix }}
-          path: ${{ env.PROJECT_NAME }}-${{ matrix.suffix }}${{ matrix.extension }}
+          path: build/${{ env.PROJECT_NAME }}-${{ matrix.suffix }}${{ matrix.extension }}
           retention-days: 7
+          if-no-files-found: error
 
   publish:
     name: Publish Release
@@ -119,27 +125,25 @@ jobs:
               artifact_name=$(basename "$artifact_dir")
               echo "Processing artifact: $artifact_name"
 
-              binary_file=$(find "$artifact_dir" -maxdepth 1 -type f \( -executable -o -name "*.exe" \) 2>/dev/null | head -1)
+              binary_file=$(find "$artifact_dir" -maxdepth 1 -type f | head -1)
 
               if [ -z "$binary_file" ]; then
-                echo "⚠️  No executable found in $artifact_dir"
-                echo "Contents of artifact directory:"
+                echo "❌ No file found in $artifact_dir"
                 ls -la "$artifact_dir"
-                continue
+                exit 1
               fi
 
               binary_name=$(basename "$binary_file")
-              echo "✅ Found binary: $binary_name"
+              echo "✅ Found: $binary_name"
 
               platform_suffix="${binary_name#${{ env.PROJECT_NAME }}-}"
 
               final_name="${{ env.PROJECT_NAME }}-${version_standalone}-${platform_suffix}"
               cp "$binary_file" "deployment/$final_name"
-              echo "Copied to: $final_name"
+              echo "📦 Prepared: $final_name"
             fi
           done
 
-          echo "Final artifacts in deployment:"
           ls -lh deployment/
 
       - name: Generate release notes
