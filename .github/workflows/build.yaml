@@ -77,11 +77,19 @@ jobs:
       - name: Install libudev
         run: sudo apt install libudev-dev
 
+      - name: Install cross compiler
+        run: |
+          sudo apt update
+          sudo apt install \
+            gcc-arm-linux-gnueabihf \
+            libc6-dev-armhf-cross
+
       - name: Build binary
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           GOARM: ${{ matrix.goarm }}
+          CGO_ENABLED: 1
         run: |
           BINARY_NAME="${{ env.PROJECT_NAME }}-${{ matrix.suffix }}${{ matrix.extension }}"
           echo "Building $BINARY_NAME"
