@@ -54,13 +54,6 @@ jobs:
           - goos: linux
             goarch: amd64
             suffix: linux-amd64
-          - goos: linux
-            goarch: arm64
-            suffix: linux-arm64
-          - goos: linux
-            goarch: arm
-            goarm: 7
-            suffix: linux-armv7
 
     steps:
       - name: Checkout code
@@ -76,13 +69,6 @@ jobs:
 
       - name: Install libudev
         run: sudo apt install libudev-dev
-
-      - name: Install cross compiler
-        run: |
-          sudo apt update
-          sudo apt install \
-            gcc-arm-linux-gnueabihf \
-            libc6-dev-armhf-cross
 
       - name: Build binary
         env:
@@ -161,8 +147,6 @@ jobs:
           | Platform | Architecture | Download |
           |----------|--------------|----------|
           | Linux | x86_64 | [archivist-${{ github.event.inputs.tag }}-linux-amd64](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.tag }}/archivist-${{ github.event.inputs.tag }}-linux-amd64) |
-          | Linux | ARM64 | [archivist-${{ github.event.inputs.tag }}-linux-arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.tag }}/archivist-${{ github.event.inputs.tag }}-linux-arm64) |
-          | Linux | ARMv7 | [archivist-${{ github.event.inputs.tag }}-linux-armv7](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.tag }}/archivist-${{ github.event.inputs.tag }}-linux-armv7) |
 
           ### 🔐 Verification
 
